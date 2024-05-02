@@ -38,6 +38,7 @@ async def get_all(
         db_session: DatabaseDependency
 ) -> list[CategoriaOutSchema]:
     categorias: list[CategoriaOutSchema] = (await db_session.execute(select(CategoriaModel))).scalars().all()
+
     return categorias
 
 
@@ -51,7 +52,7 @@ async def get_by_id(
         db_session: DatabaseDependency,
         id: UUID4
 ) -> CategoriaOutSchema:
-    categoria: CategoriaOutSchema = (await db_session.execute(select(CategoriaModel).filter_by(pk_id=id))).scalar()
+    categoria: CategoriaOutSchema = (await db_session.execute(select(CategoriaModel).filter_by(pk_id=id))).scalars().first()
 
     if not categoria:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Categoria não encontrada.')
