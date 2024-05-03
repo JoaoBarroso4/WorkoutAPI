@@ -2,9 +2,9 @@ from datetime import datetime
 from uuid import uuid4
 from fastapi import APIRouter, status, Body, HTTPException
 from pydantic import UUID4
+from sqlalchemy.exc import NoResultFound
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
-
 from api import CategoriaModel, CentroTreinamentoModel
 from api.atleta.schemas import AtletaInSchema, AtletaOutSchema, AtletaUpdateSchema
 from api.atleta.models import AtletaModel
@@ -131,16 +131,26 @@ async def patch(
         )
 
     update_data = atleta_up.model_dump(exclude_unset=True)
-    # print(update_data._sa_instance_state)
-    # print(atleta._sa_instance_state)
-    # breakpoint()
+
     for key, value in update_data.items():
-        if hasattr(atleta, key):
+        if key in ['categoria', 'centro_treinamento']:
+            Model = CategoriaModel if key == 'categoria' else CentroTreinamentoModel
+            try:
+                result = await db_session.execute(
+                    select(Model)
+                    .filter_by(nome=value['nome'])
+                )
+                instance = result.scalars().first()
+                setattr(atleta, key, instance)
+            except NoResultFound:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"{key.capitalize()} '{value['nome']}' não encontrado."
+                )
+        elif hasattr(atleta, key):
             setattr(atleta, key, value)
 
     try:
-        # db_session.add(atleta)
-        # db_session.flush()
         await db_session.commit()
         await db_session.refresh(atleta)
     except Exception as e:
