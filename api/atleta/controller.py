@@ -3,6 +3,8 @@ from uuid import uuid4
 from fastapi import APIRouter, status, Body, HTTPException
 from pydantic import UUID4
 from sqlalchemy.future import select
+from sqlalchemy.orm import selectinload
+
 from api import CategoriaModel, CentroTreinamentoModel
 from api.atleta.schemas import AtletaInSchema, AtletaOutSchema, AtletaUpdateSchema
 from api.atleta.models import AtletaModel
@@ -72,7 +74,11 @@ async def post(
     response_model=list[AtletaOutSchema],
 )
 async def get(db_session: DatabaseDependency) -> list[AtletaOutSchema]:
-    result_atletas = await db_session.execute(select(AtletaModel))
+    result_atletas = await db_session.execute(
+        select(AtletaModel).options(
+            selectinload(AtletaModel.categoria),
+            selectinload(AtletaModel.centro_treinamento)
+        ))
     atletas: list[AtletaOutSchema] = result_atletas.scalars().all()
 
     return [AtletaOutSchema.model_validate(atleta) for atleta in atletas]
@@ -108,10 +114,15 @@ async def patch(
         db_session: DatabaseDependency,
         atleta_up: AtletaUpdateSchema = Body(...)
 ) -> AtletaOutSchema:
-    atleta = await db_session.execute(
+    result_atleta = await db_session.execute(
         select(AtletaModel)
+        .options(
+            selectinload(AtletaModel.categoria),
+            selectinload(AtletaModel.centro_treinamento)
+        )
         .filter_by(id=id)
-    ).scalars().first()
+    )
+    atleta: AtletaOutSchema = result_atleta.scalars().first()
 
     if not atleta:
         raise HTTPException(
@@ -119,12 +130,25 @@ async def patch(
             detail=f'Atleta {id} não encontrado.'
         )
 
-    atleta_update = atleta_up.model_dump(exclude_unset=True)
-    for key, value in atleta_update.items():
-        setattr(atleta, key, value)
+    update_data = atleta_up.model_dump(exclude_unset=True)
+    # print(update_data._sa_instance_state)
+    # print(atleta._sa_instance_state)
+    # breakpoint()
+    for key, value in update_data.items():
+        if hasattr(atleta, key):
+            setattr(atleta, key, value)
 
-    await db_session.commit()
-    await db_session.refresh(atleta)
+    try:
+        # db_session.add(atleta)
+        # db_session.flush()
+        await db_session.commit()
+        await db_session.refresh(atleta)
+    except Exception as e:
+        await db_session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
 
     return atleta
 
@@ -135,10 +159,11 @@ async def patch(
     status_code=status.HTTP_204_NO_CONTENT,
 )
 async def delete(id: UUID4, db_session: DatabaseDependency) -> None:
-    atleta = await db_session.execute(
+    result_atleta = await db_session.execute(
         select(AtletaModel)
         .filter_by(id=id)
-    ).scalars().first()
+    )
+    atleta = result_atleta.scalars().first()
 
     if not atleta:
         raise HTTPException(
