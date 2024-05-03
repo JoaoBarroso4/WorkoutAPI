@@ -37,7 +37,8 @@ async def post(
 async def get_all(
         db_session: DatabaseDependency
 ) -> list[CategoriaOutSchema]:
-    categorias: list[CategoriaOutSchema] = (await db_session.execute(select(CategoriaModel))).scalars().all()
+    result_categorias = await db_session.execute(select(CategoriaModel))
+    categorias: list[CategoriaOutSchema] = result_categorias.scalars().all()
 
     return categorias
 
@@ -52,7 +53,8 @@ async def get_by_id(
         db_session: DatabaseDependency,
         id: UUID4
 ) -> CategoriaOutSchema:
-    categoria: CategoriaOutSchema = (await db_session.execute(select(CategoriaModel).filter_by(pk_id=id))).scalars().first()
+    result_categoria = await db_session.execute(select(CategoriaModel).filter_by(pk_id=id))
+    categoria: CategoriaOutSchema = result_categoria.scalars().first()
 
     if not categoria:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Categoria não encontrada.')

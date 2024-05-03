@@ -30,21 +30,22 @@ async def post(
 
 @router.get(
     '/',
-    summary='Lista todas as categorias',
+    summary='Lista todas as centros de treinamento',
     status_code=status.HTTP_200_OK,
     response_model=list[CentroTreinamentoOutSchema],
 )
 async def get_all(
         db_session: DatabaseDependency
 ) -> list[CentroTreinamentoOutSchema]:
-    categorias: list[CentroTreinamentoOutSchema] = (await db_session.execute(select(CentroTreinamentoModel))).scalars().all()
+    result_centros_treinamento = await db_session.execute(select(CentroTreinamentoModel))
+    centros_treinamento: list[CentroTreinamentoOutSchema] = result_centros_treinamento.scalars().all()
 
-    return categorias
+    return centros_treinamento
 
 
 @router.get(
     '/{id}',
-    summary='Busca uma categoria pelo ID',
+    summary='Busca um centro de treinamento pelo ID',
     status_code=status.HTTP_200_OK,
     response_model=CentroTreinamentoOutSchema,
 )
@@ -52,9 +53,10 @@ async def get_by_id(
         db_session: DatabaseDependency,
         id: UUID4
 ) -> CentroTreinamentoOutSchema:
-    categoria: CentroTreinamentoOutSchema = (await db_session.execute(select(CentroTreinamentoModel).filter_by(pk_id=id))).scalars().first()
+    result_centro_treinamento = await db_session.execute(select(CentroTreinamentoModel).filter_by(pk_id=id))
+    centro_treinamento: CentroTreinamentoOutSchema = result_centro_treinamento.scalars().first()
 
-    if not categoria:
+    if not centro_treinamento:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Centro de treinamento não encontrado.')
 
-    return categoria
+    return centro_treinamento
