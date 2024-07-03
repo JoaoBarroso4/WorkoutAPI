@@ -15,7 +15,7 @@ git clone https://github.com/JoaoBarroso4/WorkoutAPI.git
 ```bash
 pip install -r requirements.txt
 ```
-4. Run docker-compose to start the MongoDB container
+4. Run docker-compose to start the Postgres container
 ```bash
 docker-compose up -d
 ```
